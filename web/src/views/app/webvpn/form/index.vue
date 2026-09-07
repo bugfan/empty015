@@ -263,7 +263,11 @@ watch(
 
         <!-- 5. 公开访问 (Protected) -->
         <re-col :value="24">
-          <el-form-item :label="t('webvpn.accessMode', '公开访问')" prop="is_protected">
+          <el-form-item
+            :label="t('webvpn.accessMode', '公开访问')"
+            prop="is_protected"
+            :for="''"
+          >
             <div class="flex flex-col items-start">
               <el-switch
                 v-model="newFormInline.is_protected"
@@ -273,28 +277,15 @@ watch(
                 :inactive-text="t('webvpn.modeProtected', '不公开')"
               />
               <p class="text-xs text-gray-400 mt-2 leading-relaxed">
-                {{ t("webvpn.accessModeHint", "公开后外网可直接免登录访问；不公开则必须登录且具备授权用户组权限方可访问。") }}
+                {{ t("webvpn.accessModeHint", "公开后外网可直接免登录访问；不公开则必须登录且具备用户组权限方可访问。") }}
               </p>
             </div>
           </el-form-item>
         </re-col>
 
-        <!-- 6. 启用 (单独起一行放在公开访问下面) -->
-        <re-col :value="24">
-          <el-form-item :label="t('webvpn.status', '启用')" prop="status">
-            <el-switch
-              v-model="newFormInline.status"
-              :active-value="1"
-              :inactive-value="0"
-              :active-text="t('webvpn.statusEnabled', '启用')"
-              :inactive-text="t('webvpn.statusDisabled', '禁用')"
-            />
-          </el-form-item>
-        </re-col>
-
-        <!-- 7. 授权用户组 (仅在受保护模式下展示) -->
+        <!-- 6. 用户组 (仅在受保护/不公开模式下展示，紧随公开访问开关) -->
         <re-col v-if="newFormInline.is_protected === 1" :value="24">
-          <el-form-item :label="t('webvpn.allowedGroups', '授权用户组')" prop="group_ids">
+          <el-form-item :label="t('webvpn.allowedGroups', '用户组')" prop="group_ids">
             <el-select
               v-model="newFormInline.group_ids"
               multiple
@@ -311,8 +302,25 @@ watch(
               />
             </el-select>
             <p class="text-xs text-gray-400 mt-2 leading-relaxed">
-              {{ t("webvpn.groupsHint", "留空代表对所有已登录用户开放；选择特定组后，仅有权限的账号才可访问。") }}
+              {{ t("webvpn.groupsHint", "留空代表对所有已登录用户开放；选择特定组后，仅有权限的组才可访问。") }}
             </p>
+          </el-form-item>
+        </re-col>
+
+        <!-- 7. 启用 -->
+        <re-col :value="24">
+          <el-form-item
+            :label="t('webvpn.status', '启用')"
+            prop="status"
+            :for="''"
+          >
+            <el-switch
+              v-model="newFormInline.status"
+              :active-value="1"
+              :inactive-value="0"
+              :active-text="t('webvpn.statusEnabled', '启用')"
+              :inactive-text="t('webvpn.statusDisabled', '禁用')"
+            />
           </el-form-item>
         </re-col>
 

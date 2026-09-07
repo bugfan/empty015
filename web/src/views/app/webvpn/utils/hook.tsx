@@ -117,12 +117,12 @@ export function useWebvpn(t: Function, tableRef: any) {
       }
     },
     {
-      label: t("webvpn.allowedGroups", "授权用户组"),
+      label: t("webvpn.allowedGroups", "用户组"),
       align: "center",
       prop: "allowed_group_ids",
       minWidth: 150,
       headerRenderer: () => (
-        <span class="whitespace-nowrap">{t("webvpn.allowedGroups", "授权用户组")}</span>
+        <span class="whitespace-nowrap">{t("webvpn.allowedGroups", "用户组")}</span>
       ),
       cellRenderer: scope => {
         const row = scope.row;
@@ -273,7 +273,7 @@ export function useWebvpn(t: Function, tableRef: any) {
     {
       label: t("common.operations", "操作"),
       fixed: "right",
-      width: 140,
+      width: 160,
       align: "center",
       headerRenderer: () => (
         <span class="whitespace-nowrap">{t("common.operations", "操作")}</span>

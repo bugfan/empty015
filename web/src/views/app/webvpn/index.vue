@@ -252,32 +252,34 @@ async function handleSaveSubmit() {
             @page-current-change="onSearch"
           >
             <template #operation="{ row }">
-              <el-button
-                class="reset-margin"
-                link
-                type="primary"
-                :size="size"
-                :icon="useRenderIcon(EditPen)"
-                @click="handleEditPage(row)"
-              >
-                {{ t("common.edit", "编辑") }}
-              </el-button>
-              <el-popconfirm
-                :title="t('webvpn.deleteConfirm', { name: row.Name || row.name })"
-                @confirm="handleDelete(row)"
-              >
-                <template #reference>
-                  <el-button
-                    class="reset-margin"
-                    link
-                    type="danger"
-                    :size="size"
-                    :icon="useRenderIcon(Delete)"
-                  >
-                    {{ t("common.delete", "删除") }}
-                  </el-button>
-                </template>
-              </el-popconfirm>
+              <div class="flex items-center justify-center gap-2 whitespace-nowrap">
+                <el-button
+                  class="reset-margin"
+                  link
+                  type="primary"
+                  :size="size"
+                  :icon="useRenderIcon(EditPen)"
+                  @click="handleEditPage(row)"
+                >
+                  {{ t("common.edit", "编辑") }}
+                </el-button>
+                <el-popconfirm
+                  :title="t('webvpn.deleteConfirm', { name: row.Name || row.name })"
+                  @confirm="handleDelete(row)"
+                >
+                  <template #reference>
+                    <el-button
+                      class="reset-margin"
+                      link
+                      type="danger"
+                      :size="size"
+                      :icon="useRenderIcon(Delete)"
+                    >
+                      {{ t("common.delete", "删除") }}
+                    </el-button>
+                  </template>
+                </el-popconfirm>
+              </div>
             </template>
           </pure-table>
         </template>
