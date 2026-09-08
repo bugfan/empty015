@@ -66,11 +66,46 @@ func InitDB(dsn string) {
 		new(DnsProxy), new(TcpProxy), new(UdpProxy), new(SniProxy),
 		new(Rule), new(HttpProxy), new(ClusterNode), new(AcmeAccount),
 		new(UserGroup), new(User), new(AuthMethod), new(Auth),
-		new(WebvpnSite),
+		new(WebvpnService), new(WebvpnSite),
 	)
 
 	if err != nil {
 		log.Fatalf("Failed to sync database: %v", err)
+	}
+
+	// Migrate legacy WebvpnSite http_proxy_id to WebvpnService if webvpn_service is empty
+	if count, err := engine.Count(new(WebvpnService)); err == nil && count == 0 {
+		var sites []WebvpnSite
+		_ = engine.Find(&sites)
+		proxySvcMap := make(map[int64]int64)
+		for _, s := range sites {
+			if s.HttpProxyId > 0 && s.ServiceId == 0 {
+				if svcId, ok := proxySvcMap[s.HttpProxyId]; ok {
+					s.ServiceId = svcId
+					_, _ = engine.ID(s.Id).Cols("service_id").Update(&s)
+				} else {
+					var p HttpProxy
+					if has, _ := engine.ID(s.HttpProxyId).Get(&p); has {
+						newSvc := WebvpnService{
+							Name:        p.Name,
+							Hostname:    p.Hostname,
+							Port:        p.Port,
+							TLS:         p.TLS,
+							H2:          p.H2,
+							Certificate: p.Certificate,
+							Fallback:    "404",
+							Status:      1,
+							Remark:      p.Remark,
+						}
+						if _, err := engine.Insert(&newSvc); err == nil && newSvc.Id > 0 {
+							proxySvcMap[s.HttpProxyId] = newSvc.Id
+							s.ServiceId = newSvc.Id
+							_, _ = engine.ID(s.Id).Cols("service_id").Update(&s)
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Ensure default UserGroup exists

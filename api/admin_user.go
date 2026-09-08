@@ -371,13 +371,11 @@ func AsyncRoutesHandler(c *gin.Context) {
 				},
 			},
 			{
-				"path":     "/http",
-				"redirect": "/http/index",
+				"path": "/http",
 				"meta": gin.H{
-					"icon":    "ri:global-line",
-					"title":   "menus.pureWeb",
-					"isGroup": true,
-					"rank":    5,
+					"icon":  "ri:global-line",
+					"title": "menus.pureHttpProxy",
+					"rank":  5,
 				},
 				"children": []gin.H{
 					{
@@ -385,18 +383,40 @@ func AsyncRoutesHandler(c *gin.Context) {
 						"name":      "AppHttpProxy",
 						"component": "app/http/index",
 						"meta": gin.H{
-							"icon":  "ri:links-line",
+							"icon":  "ri:global-line",
 							"title": "menus.pureHttpProxy",
 							"roles": []string{"admin", "common"},
 						},
 					},
+				},
+			},
+			{
+				"path": "/webvpn",
+				"name": "AppWebvpnParent",
+				"meta": gin.H{
+					"icon":  "ri:shield-user-line",
+					"title": "menus.pureWebvpn",
+					"rank":  6,
+					"roles": []string{"admin", "common"},
+				},
+				"children": []gin.H{
 					{
-						"path":      "/http/webvpn",
-						"name":      "AppWebvpn",
-						"component": "app/webvpn/index",
+						"path":      "/webvpn/service",
+						"name":      "AppWebvpnService",
+						"component": "app/webvpn/service/index",
 						"meta": gin.H{
-							"icon":  "ri:shield-user-line",
-							"title": "menus.pureWebvpn",
+							"icon":  "ri:base-station-line",
+							"title": "menus.pureWebvpnService",
+							"roles": []string{"admin", "common"},
+						},
+					},
+					{
+						"path":      "/webvpn/site",
+						"name":      "AppWebvpnSite",
+						"component": "app/webvpn/site/index",
+						"meta": gin.H{
+							"icon":  "ri:links-line",
+							"title": "menus.pureWebvpnSite",
 							"roles": []string{"admin", "common"},
 						},
 					},
@@ -407,7 +427,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:key-2-line",
 					"title": "menus.pureSni",
-					"rank":  6,
+					"rank":  7,
 				},
 				"children": []gin.H{
 					{
@@ -427,7 +447,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:exchange-line",
 					"title": "menus.pureTcp",
-					"rank":  7,
+					"rank":  8,
 				},
 				"children": []gin.H{
 					{
@@ -447,7 +467,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:earth-line",
 					"title": "menus.pureDns",
-					"rank":  8,
+					"rank":  9,
 				},
 				"children": []gin.H{
 					{
@@ -467,7 +487,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:send-plane-line",
 					"title": "menus.pureUdp",
-					"rank":  9,
+					"rank":  10,
 				},
 				"children": []gin.H{
 					{
@@ -488,7 +508,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:user-shared-line",
 					"title": "menus.pureUserParent",
-					"rank":  10,
+					"rank":  11,
 					"roles": []string{"admin", "common"},
 				},
 				"children": []gin.H{
@@ -520,7 +540,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:shield-keyhole-line",
 					"title": "menus.pureAuthParent",
-					"rank":  11,
+					"rank":  12,
 					"roles": []string{"admin", "common"},
 				},
 				"children": []gin.H{
@@ -551,7 +571,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:server-line",
 					"title": "menus.pureCluster",
-					"rank":  12,
+					"rank":  13,
 				},
 				"children": []gin.H{
 					{
@@ -571,7 +591,7 @@ func AsyncRoutesHandler(c *gin.Context) {
 				"meta": gin.H{
 					"icon":  "ri:admin-line",
 					"title": "menus.pureAdminManagement",
-					"rank":  13,
+					"rank":  14,
 				},
 				"children": []gin.H{
 					{

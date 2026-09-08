@@ -139,11 +139,9 @@ const dnsRouter = {
 
 const httpRouter = {
   path: "/http",
-  redirect: "/http/index",
   meta: {
     icon: "ri:global-line",
-    title: "menus.pureWeb",
-    isGroup: true,
+    title: "menus.pureHttpProxy",
     rank: 5
   },
   children: [
@@ -152,18 +150,41 @@ const httpRouter = {
       name: "AppHttpProxy",
       component: "app/http/index",
       meta: {
-        icon: "ri:links-line",
+        icon: "ri:global-line",
         title: "menus.pureHttpProxy",
+        roles: ["admin", "common"]
+      }
+    }
+  ]
+};
+
+const webvpnRouter = {
+  path: "/webvpn",
+  name: "AppWebvpnParent",
+  meta: {
+    icon: "ri:shield-user-line",
+    title: "menus.pureWebvpn",
+    rank: 6,
+    roles: ["admin", "common"]
+  },
+  children: [
+    {
+      path: "/webvpn/service",
+      name: "AppWebvpnService",
+      component: "app/webvpn/service/index",
+      meta: {
+        icon: "ri:base-station-line",
+        title: "menus.pureWebvpnService",
         roles: ["admin", "common"]
       }
     },
     {
-      path: "/http/webvpn",
-      name: "AppWebvpn",
-      component: "app/webvpn/index",
+      path: "/webvpn/site",
+      name: "AppWebvpnSite",
+      component: "app/webvpn/site/index",
       meta: {
-        icon: "ri:shield-user-line",
-        title: "menus.pureWebvpn",
+        icon: "ri:links-line",
+        title: "menus.pureWebvpnSite",
         roles: ["admin", "common"]
       }
     }
@@ -289,6 +310,7 @@ export default defineFakeRoute([
           ruleRouter,
           dnsRouter,
           httpRouter,
+          webvpnRouter,
           tcpRouter,
           sniRouter,
           udpRouter,

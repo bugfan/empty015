@@ -9,10 +9,10 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import type { FormProps } from "../utils/types";
 
 const props = withDefaults(
-  defineProps<FormProps & { groupList?: any[]; proxyList?: any[] }>(),
+  defineProps<FormProps & { groupList?: any[]; serviceList?: any[] }>(),
   {
     groupList: () => [],
-    proxyList: () => []
+    serviceList: () => []
   }
 );
 
@@ -23,6 +23,17 @@ const newFormInline = ref(props.formInline);
 if (!newFormInline.value.replaceList) {
   newFormInline.value.replaceList = [];
 }
+
+watch(
+  () => props.formInline,
+  val => {
+    newFormInline.value = val;
+    if (!newFormInline.value.replaceList) {
+      newFormInline.value.replaceList = [];
+    }
+  },
+  { deep: true }
+);
 
 function addReplaceRule() {
   if (!newFormInline.value.replaceList) {
@@ -55,12 +66,12 @@ const rules: FormRules = {
       trigger: "blur"
     }
   ],
-  http_proxy_id: [
+  service_id: [
     {
       required: true,
       validator: (rule, value, callback) => {
         if (!value || value <= 0) {
-          callback(new Error(t("webvpn.valProxyRequired", "必须选择关联的泛域名 HTTP 站点")));
+          callback(new Error(t("webvpn.valServiceRequired", "必须选择所属 WebVPN 基础域")));
         } else {
           callback();
         }
@@ -73,7 +84,7 @@ const rules: FormRules = {
       required: true,
       validator: (rule, value, callback) => {
         if (!value || !value.trim()) {
-          callback(new Error(t("webvpn.valTargetUrlRequired", "目标真实地址不能为空")));
+          callback(new Error(t("webvpn.valTargetUrlRequired", "站点地址不能为空")));
         } else if (!value.startsWith("http://") && !value.startsWith("https://")) {
           callback(new Error(t("webvpn.valTargetUrlInvalid", "必须是以 http:// 或 https:// 开头的合法完整 URL")));
         } else {
@@ -85,18 +96,19 @@ const rules: FormRules = {
   ]
 };
 
-// Selected proxy details
-const selectedProxy = computed(() => {
-  if (!newFormInline.value.http_proxy_id || !props.proxyList) return null;
-  return props.proxyList.find(
-    (p: any) => (p.Id || p.id) === newFormInline.value.http_proxy_id
+// Selected WebVPN Service details
+const selectedService = computed(() => {
+  const sid = newFormInline.value.service_id || newFormInline.value.http_proxy_id;
+  if (!sid || !props.serviceList) return null;
+  return props.serviceList.find(
+    (s: any) => (s.Id || s.id) === sid
   );
 });
 
 // Auto-derive WebVPN Prefix and Full Access Address in real-time
 const derivedInfo = computed(() => {
   const target = (newFormInline.value.target_url || "").trim();
-  const proxy = selectedProxy.value;
+  const service = selectedService.value;
   if (!target) {
     return { prefix: "", fullUrl: "" };
   }
@@ -116,49 +128,30 @@ const derivedInfo = computed(() => {
     const dashed = escaped.replace(/\./g, "-");
     const prefix = `${schemePrefix}${dashed}-${targetPort}`;
 
-    if (!proxy) {
+    if (!service) {
       return { prefix, fullUrl: "" };
     }
 
-    const proxyHostname = proxy.Hostname || proxy.hostname || "";
-    const rootDomain = proxyHostname.replace(/^\*\./, "");
+    const serviceHostname = service.Hostname || service.hostname || "";
+    const rootDomain = serviceHostname.replace(/^\*\./, "");
     if (!rootDomain) {
       return { prefix, fullUrl: "" };
     }
 
-    const isTLS = proxy.TLS || proxy.tls || proxy.H2 || proxy.h2;
-    const proxyScheme = isTLS ? "https://" : "http://";
-    const proxyPort = proxy.Port || proxy.port || "80";
+    const isTLS = service.TLS ?? service.tls ?? service.H2 ?? service.h2 ?? true;
+    const scheme = isTLS ? "https://" : "http://";
+    const port = service.Port || service.port || "443";
     const portSuffix =
-      proxyPort !== "80" && proxyPort !== "443" && proxyPort !== ""
-        ? `:${proxyPort}`
+      port !== "80" && port !== "443" && port !== ""
+        ? `:${port}`
         : "";
 
-    const fullUrl = `${proxyScheme}${prefix}.${rootDomain}${portSuffix}`;
+    const fullUrl = `${scheme}${prefix}.${rootDomain}${portSuffix}`;
     return { prefix, fullUrl };
   } catch (e) {
     return { prefix: "", fullUrl: "" };
   }
 });
-
-// Keep prefix in sync with auto-calculation
-watch(
-  () => derivedInfo.value.prefix,
-  newVal => {
-    if (newVal) {
-      newFormInline.value.prefix = newVal;
-    }
-  },
-  { immediate: true }
-);
-
-watch(
-  () => props.formInline,
-  val => {
-    newFormInline.value = val;
-  },
-  { deep: true }
-);
 </script>
 
 <template>
@@ -167,7 +160,7 @@ watch(
     :model="newFormInline"
     :rules="rules"
     label-width="140px"
-    class="webvpn-form space-y-4"
+    class="space-y-6"
   >
     <!-- Section 1: 基本信息 -->
     <el-card shadow="never" class="border-(--el-border-color-lighter)! rounded-xl">
@@ -175,34 +168,34 @@ watch(
         <div class="flex items-center space-x-2">
           <div class="w-1.5 h-4 bg-primary rounded-full" />
           <span class="font-bold text-(--el-text-color-primary) text-sm sm:text-base">
-            {{ t("webvpn.baseSection", "基本信息") }}
+            {{ t("webvpn.basicSection", "基本信息") }}
           </span>
         </div>
       </template>
 
-      <el-row :gutter="16">
-        <!-- 1. 名称 (最上面，最前面) -->
-        <re-col :value="12" :xs="24">
+      <el-row :gutter="24">
+        <!-- 1. 应用名称 -->
+        <re-col :value="24">
           <el-form-item :label="t('webvpn.name', '名称')" prop="name">
             <el-input
               v-model="newFormInline.name"
               clearable
-              :placeholder="t('webvpn.namePlaceholder', '例如：中国知网、内部财务OA、代码仓库')"
+              :placeholder="t('webvpn.namePlaceholder', '如：中国知网、内部 OA 办公系统')"
             />
           </el-form-item>
         </re-col>
 
-        <!-- 2. 泛域名 (名称右面，他两占一行) -->
-        <re-col :value="12" :xs="24">
-          <el-form-item :label="t('webvpn.boundSite', '泛域名')" prop="http_proxy_id">
+        <!-- 2. 所属基础域 -->
+        <re-col :value="24">
+          <el-form-item :label="t('webvpn.service', '所属基础域')" prop="service_id">
             <el-select
-              v-model="newFormInline.http_proxy_id"
-              :placeholder="t('webvpn.selectProxyPlaceholder', '选择已创建的泛域名 HTTP 站点')"
+              v-model="newFormInline.service_id"
+              :placeholder="t('webvpn.servicePlaceholder', '选择已配置的 WebVPN 基础域网关')"
               class="w-full"
               filterable
             >
               <el-option
-                v-for="item in proxyList"
+                v-for="item in serviceList"
                 :key="item.Id || item.id"
                 :label="`${item.Name || item.name} (${item.Hostname || item.hostname})`"
                 :value="item.Id || item.id"
@@ -211,13 +204,8 @@ watch(
                   <span>{{ item.Name || item.name }}</span>
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-400 font-mono">{{ item.Hostname || item.hostname }}</span>
-                    <el-tag
-                      v-if="(item.Hostname || item.hostname || '').includes('*')"
-                      size="small"
-                      type="success"
-                      effect="dark"
-                    >
-                      {{ t("webvpn.wildcardTag", "泛域名") }}
+                    <el-tag size="small" type="primary" effect="light">
+                      {{ item.Port || item.port || '443' }}
                     </el-tag>
                   </div>
                 </div>

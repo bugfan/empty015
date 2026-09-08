@@ -265,142 +265,102 @@ func buildHTTPMap(rulesMap map[string]models.Rule) map[string]entity.HTTPConfig 
 			}
 		}
 
-		// Automatically synthesize and append subdomain_webvpn_action rule if active WebVPN sites exist
-		var vpnSites []models.WebvpnSite
-		_ = engine.Where("http_proxy_id = ? AND status = 1", item.Id).Find(&vpnSites)
-		if len(vpnSites) > 0 {
-			rootDomain := strings.TrimPrefix(item.Hostname, "*.")
-			vpnActionSites := make(map[string]interface{})
-			for _, vs := range vpnSites {
-				u, err := url.Parse(vs.TargetURL)
-				if err != nil {
-					continue
-				}
-				targetHost := u.Hostname()
-				targetPort := u.Port()
-				schemePrefix := "s-"
-				if u.Scheme == "http" {
-					schemePrefix = "c-"
-					if targetPort == "" {
-						targetPort = "80"
-					}
-				} else {
-					if targetPort == "" {
-						targetPort = "443"
-					}
-				}
-
-				hostMap := make(map[string]string)
-				wildcardMap := make(map[string]string)
-
-				// 1. Primary target host
-				dashedTarget := strings.ReplaceAll(strings.ReplaceAll(targetHost, "-", "--"), ".", "-")
-				mainVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashedTarget, targetPort, rootDomain)
-				hostMap[u.Host] = mainVpnHost
-				if u.Port() != "" {
-					hostMap[targetHost] = mainVpnHost
-				}
-
-				// 2. Related domain names from vs.Hosts
-				for _, line := range strings.Split(vs.Hosts, "\n") {
-					domain := strings.TrimSpace(line)
-					if domain == "" {
+		// Automatically synthesize and append subdomain_webvpn_action rule if active WebVPN sites exist on legacy HttpProxy
+		var svcCount int64
+		if engine != nil {
+			svcCount, _ = engine.Count(new(models.WebvpnService))
+		}
+		if svcCount == 0 {
+			var vpnSites []models.WebvpnSite
+			_ = engine.Where("http_proxy_id = ? AND status = 1", item.Id).Find(&vpnSites)
+			if len(vpnSites) > 0 {
+				rootDomain := strings.TrimPrefix(item.Hostname, "*.")
+				vpnActionSites := make(map[string]interface{})
+				for _, vs := range vpnSites {
+					u, err := url.Parse(vs.TargetURL)
+					if err != nil {
 						continue
 					}
-					if strings.Contains(domain, "*") {
-						wildcardMap[domain] = ""
+					targetHost := u.Hostname()
+					targetPort := u.Port()
+					schemePrefix := "s-"
+					if u.Scheme == "http" {
+						schemePrefix = "c-"
+						if targetPort == "" {
+							targetPort = "80"
+						}
 					} else {
-						dashed := strings.ReplaceAll(strings.ReplaceAll(domain, "-", "--"), ".", "-")
-						relVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashed, targetPort, rootDomain)
-						hostMap[domain] = relVpnHost
-					}
-				}
-
-				isProt := vs.IsProtected == 1
-				var groupIds []int64
-				if isProt && vs.AllowedGroupIds != "" {
-					_ = json.Unmarshal([]byte(vs.AllowedGroupIds), &groupIds)
-				}
-
-				replaceMap := make(map[string]string)
-				if vs.Replace != "" {
-					_ = json.Unmarshal([]byte(vs.Replace), &replaceMap)
-				}
-
-				vpnActionSites[vs.Prefix] = map[string]interface{}{
-					"name":              vs.Name,
-					"protected":         isProt,
-					"allowed_group_ids": groupIds,
-					"host":              hostMap,
-					"wildcard":          wildcardMap,
-					"replace":           replaceMap,
-				}
-			}
-
-			if len(vpnActionSites) > 0 {
-				// Discover LoginURL from existing auth portal or auth guard rules
-				loginURL := ""
-				for _, p := range httpList {
-					if p.Rules != "" {
-						var rNames []string
-						_ = json.Unmarshal([]byte(p.Rules), &rNames)
-						for _, rn := range rNames {
-							if r, ok := rulesMap[rn]; ok && strings.Contains(r.Items, "auth_portal_action") {
-								scheme := "http://"
-								if p.TLS || p.H2 {
-									scheme = "https://"
-								}
-								portPart := ""
-								if p.Port != "80" && p.Port != "443" && p.Port != "" {
-									portPart = ":" + p.Port
-								}
-								loginURL = scheme + p.Hostname + portPart
-								break
-							}
+						if targetPort == "" {
+							targetPort = "443"
 						}
 					}
-					if loginURL != "" {
-						break
+
+					hostMap := make(map[string]string)
+					wildcardMap := make(map[string]string)
+
+					// 1. Primary target host
+					dashedTarget := strings.ReplaceAll(strings.ReplaceAll(targetHost, "-", "--"), ".", "-")
+					mainVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashedTarget, targetPort, rootDomain)
+					hostMap[u.Host] = mainVpnHost
+					if u.Port() != "" {
+						hostMap[targetHost] = mainVpnHost
+					}
+
+					// 2. Related domain names from vs.Hosts
+					for _, line := range strings.Split(vs.Hosts, "\n") {
+						domain := strings.TrimSpace(line)
+						if domain == "" {
+							continue
+						}
+						if strings.Contains(domain, "*") {
+							wildcardMap[domain] = ""
+						} else {
+							dashed := strings.ReplaceAll(strings.ReplaceAll(domain, "-", "--"), ".", "-")
+							relVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashed, targetPort, rootDomain)
+							hostMap[domain] = relVpnHost
+						}
+					}
+
+					isProt := vs.IsProtected == 1
+					var groupIds []int64
+					if isProt && vs.AllowedGroupIds != "" {
+						_ = json.Unmarshal([]byte(vs.AllowedGroupIds), &groupIds)
+					}
+
+					replaceMap := make(map[string]string)
+					if vs.Replace != "" {
+						_ = json.Unmarshal([]byte(vs.Replace), &replaceMap)
+					}
+
+					vpnActionSites[vs.Prefix] = map[string]interface{}{
+						"name":              vs.Name,
+						"protected":         isProt,
+						"allowed_group_ids": groupIds,
+						"host":              hostMap,
+						"wildcard":          wildcardMap,
+						"replace":           replaceMap,
 					}
 				}
 
-				if loginURL == "" {
-					for _, r := range rulesMap {
-						if strings.Contains(r.Items, "auth_guard_action") {
-							var items []entity.RuleConfig
-							if err := json.Unmarshal([]byte(r.Items), &items); err == nil {
-								for _, it := range items {
-									if it.Action.Name == "auth_guard_action" {
-										if cfgMap, ok := it.Action.Config.(map[string]interface{}); ok {
-											if pu, ok := cfgMap["portal_url"].(string); ok && pu != "" {
-												loginURL = pu
-												break
-											}
-										}
-									}
-								}
-							}
-						}
-						if loginURL != "" {
-							break
-						}
-					}
-				}
+				if len(vpnActionSites) > 0 {
+					loginURL := discoverAuthLoginURL(httpList, rulesMap)
 
-				ruleConfigs = append(ruleConfigs, entity.RuleConfig{
-					Matcher: entity.MatcherConfig{
-						Name:   "always_true_matcher",
-						Config: map[string]interface{}{},
-					},
-					Action: entity.ActionConfig{
-						Name: "subdomain_webvpn_action",
-						Config: map[string]interface{}{
-							"Sites":        vpnActionSites,
-							"LoginURL":     loginURL,
-							"CookieDomain": "." + rootDomain,
+					ruleConfigs = append(ruleConfigs, entity.RuleConfig{
+						Matcher: entity.MatcherConfig{
+							Name:   "always_true_matcher",
+							Config: map[string]interface{}{},
 						},
-					},
-				})
+						Action: entity.ActionConfig{
+							Name: "subdomain_webvpn_action",
+							Config: map[string]interface{}{
+								"Sites":        vpnActionSites,
+								"LoginURL":     loginURL,
+								"CookieDomain": "." + rootDomain,
+								"Fallback":     "404",
+							},
+						},
+					})
+				}
 			}
 		}
 
@@ -493,7 +453,186 @@ func buildHTTPMap(rulesMap map[string]models.Rule) map[string]entity.HTTPConfig 
 			},
 		}
 	}
+
+	// Build dedicated WebVPN Gateway services
+	var webvpnServices []models.WebvpnService
+	_ = engine.Where("status = 1").Find(&webvpnServices)
+	for _, svc := range webvpnServices {
+		svcKeyStr := "webvpn_" + strconv.FormatInt(svc.Id, 10)
+		rootDomain := strings.TrimPrefix(svc.Hostname, "*.")
+
+		var vpnSites []models.WebvpnSite
+		_ = engine.Where("(service_id = ? OR (service_id = 0 AND http_proxy_id = ?)) AND status = 1", svc.Id, svc.Id).Find(&vpnSites)
+
+		vpnActionSites := make(map[string]interface{})
+		for _, vs := range vpnSites {
+			u, err := url.Parse(vs.TargetURL)
+			if err != nil {
+				continue
+			}
+			targetHost := u.Hostname()
+			targetPort := u.Port()
+			schemePrefix := "s-"
+			if u.Scheme == "http" {
+				schemePrefix = "c-"
+				if targetPort == "" {
+					targetPort = "80"
+				}
+			} else {
+				if targetPort == "" {
+					targetPort = "443"
+				}
+			}
+
+			hostMap := make(map[string]string)
+			wildcardMap := make(map[string]string)
+
+			// 1. Primary target host
+			dashedTarget := strings.ReplaceAll(strings.ReplaceAll(targetHost, "-", "--"), ".", "-")
+			mainVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashedTarget, targetPort, rootDomain)
+			hostMap[u.Host] = mainVpnHost
+			if u.Port() != "" {
+				hostMap[targetHost] = mainVpnHost
+			}
+
+			// 2. Related domain names from vs.Hosts
+			for _, line := range strings.Split(vs.Hosts, "\n") {
+				domain := strings.TrimSpace(line)
+				if domain == "" {
+					continue
+				}
+				if strings.Contains(domain, "*") {
+					wildcardMap[domain] = ""
+				} else {
+					dashed := strings.ReplaceAll(strings.ReplaceAll(domain, "-", "--"), ".", "-")
+					relVpnHost := fmt.Sprintf("%s%s-%s.%s", schemePrefix, dashed, targetPort, rootDomain)
+					hostMap[domain] = relVpnHost
+				}
+			}
+
+			isProt := vs.IsProtected == 1
+			var groupIds []int64
+			if isProt && vs.AllowedGroupIds != "" {
+				_ = json.Unmarshal([]byte(vs.AllowedGroupIds), &groupIds)
+			}
+
+			replaceMap := make(map[string]string)
+			if vs.Replace != "" {
+				_ = json.Unmarshal([]byte(vs.Replace), &replaceMap)
+			}
+
+			vpnActionSites[vs.Prefix] = map[string]interface{}{
+				"name":              vs.Name,
+				"protected":         isProt,
+				"allowed_group_ids": groupIds,
+				"host":              hostMap,
+				"wildcard":          wildcardMap,
+				"replace":           replaceMap,
+			}
+		}
+
+		loginURL := svc.LoginURL
+		if loginURL == "" {
+			loginURL = discoverAuthLoginURL(httpList, rulesMap)
+		}
+
+		fallbackPolicy := svc.Fallback
+		if fallbackPolicy == "" {
+			fallbackPolicy = "404"
+		}
+
+		ruleConfigs := []entity.RuleConfig{
+			{
+				Matcher: entity.MatcherConfig{
+					Name:   "always_true_matcher",
+					Config: map[string]interface{}{},
+				},
+				Action: entity.ActionConfig{
+					Name: "subdomain_webvpn_action",
+					Config: map[string]interface{}{
+						"Sites":        vpnActionSites,
+						"LoginURL":     loginURL,
+						"CookieDomain": "." + rootDomain,
+						"Fallback":     fallbackPolicy,
+					},
+				},
+			},
+		}
+
+		httpMap[svcKeyStr] = entity.HTTPConfig{
+			Front: entity.HTTPFront{
+				Port:         svc.Port,
+				Hostname:     svc.Hostname,
+				HTTP:         true,
+				TLS:          svc.TLS,
+				H2:           svc.H2,
+				Certificate:  svc.Certificate,
+				ProxyHeaders: []string{},
+			},
+			Feature: entity.HTTPFeature{
+				Compress: false,
+			},
+			Rule: ruleConfigs,
+			Backend: entity.HTTPBackend{
+				Location: []entity.HTTPLocation{
+					{
+						Path: "/",
+						Upstream: entity.LocationUpstream{
+							Type: "proxy_pass",
+							Data: map[string]interface{}{
+								"Method": "round_robin",
+								"Servers": []map[string]interface{}{
+									{"Target": "http://127.0.0.1:80", "Weight": 1},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
 	return httpMap
+}
+
+func discoverAuthLoginURL(httpList []models.HttpProxy, rulesMap map[string]models.Rule) string {
+	for _, p := range httpList {
+		if p.Rules != "" {
+			var rNames []string
+			_ = json.Unmarshal([]byte(p.Rules), &rNames)
+			for _, rn := range rNames {
+				if r, ok := rulesMap[rn]; ok && strings.Contains(r.Items, "auth_portal_action") {
+					scheme := "http://"
+					if p.TLS || p.H2 {
+						scheme = "https://"
+					}
+					portPart := ""
+					if p.Port != "80" && p.Port != "443" && p.Port != "" {
+						portPart = ":" + p.Port
+					}
+					return scheme + p.Hostname + portPart
+				}
+			}
+		}
+	}
+
+	for _, r := range rulesMap {
+		if strings.Contains(r.Items, "auth_guard_action") {
+			var items []entity.RuleConfig
+			if err := json.Unmarshal([]byte(r.Items), &items); err == nil {
+				for _, it := range items {
+					if it.Action.Name == "auth_guard_action" {
+						if cfgMap, ok := it.Action.Config.(map[string]interface{}); ok {
+							if pu, ok := cfgMap["portal_url"].(string); ok && pu != "" {
+								return pu
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func buildTunnelClientMap() map[string]string {
